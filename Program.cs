@@ -9,8 +9,11 @@ namespace Extrusion_Calculator
 
         static void Main()
         {
+            InventoryManager.SetupInventory();
+
             Console.WriteLine("Type help to see all commands");
             Console.WriteLine("Return nothing to exit");
+
             MainLoop();
         }
 
