@@ -15,6 +15,12 @@ namespace Extrusion_Calculator
     public struct DoubleArrayCommand(string c, double[] d)
     {
         public string Command { get; set; } = c;
-        public double[] Dims { get; set; } = d;
+        public double[] Args { get; set; } = d;
+    }
+
+    public struct ConsoleCommand(string c, string[] a)
+    {
+        public string Command { get; set; } = c;
+        public string[] Args { get; set; } = a;
     }
 }
