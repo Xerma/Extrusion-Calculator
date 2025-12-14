@@ -10,30 +10,28 @@ namespace Extrusion_Calculator
 {
     public class CommandManager
     {
-        private static readonly List<string> CommandSizeList = [ "add", "a", "del", "d", "box", "b" ];
-        private static readonly List<string> CommandNoSizeList = ["help", "h", "inv", "i", "clear", "c"];
+        private static readonly List<string> ArgsNeeded = [ "add", "a", "del", "d", "box", "b" ];
+        private static readonly List<string> ArgsNotNeeded = ["help", "h", "inv", "i", "clear", "c"];
 
         public static void RunCommand(string input, SortedSet<double> invList)
         {
-            string command = GetCommand(input).Item1;
-            string commandParsed;
+            ConsoleCommand fullCommand = ParseCommand(input);
+            string command = fullCommand.Command;
+            string[] args = fullCommand.Args;
             double sizeParsed = 0;
             double[] boxDims = [];
 
             if (IsBoxCommand(command))
             {
-                DoubleArrayCommand doubleArrayCommandParsed = ParseBoxCommand(input);
-                commandParsed = doubleArrayCommandParsed.Command;
-                boxDims = doubleArrayCommandParsed.Dims;
+                boxDims = TryBoxDims(args);
             }
-            else
+            else if (ArgsNeeded.Contains(command))
             {
-                DoubleCommand doubleCommandParsed = ParseCommand(input);
-                commandParsed = doubleCommandParsed.Command;
-                sizeParsed = doubleCommandParsed.Size;
+                if (!double.TryParse(args[0], out sizeParsed))
+                    Console.WriteLine("Size Error: Ensure the size only contains numbers");
             }
 
-            switch (commandParsed)
+            switch (command)
             {
                 case "help":
                     Help.HelpCommand();
@@ -68,7 +66,7 @@ namespace Extrusion_Calculator
                     Program.MainWrite();
                     break;
                 case "box":
-                    Box.BoxCommand(boxDims, invList);
+                    Box.BoxCommand(boxDims, invList);            // box command gives needs a size error
                     break;
                 case "b":
                     Box.BoxCommand(boxDims, invList);
@@ -79,45 +77,37 @@ namespace Extrusion_Calculator
             }
         }
 
-        public static DoubleCommand ParseCommand(string input)
+        public static ConsoleCommand ParseCommand(string input)
         {
-            (string, string[]) commandTuple = GetCommand(input);
-            string command = commandTuple.Item1;
-            string[] splitItems = commandTuple.Item2;
-            double size = 0;
+            ConsoleCommand fullCommand = InputToFullCommand(input);
+            string command = fullCommand.Command;
+            string[] args = fullCommand.Args;
 
-            if (splitItems.Length > 1 && CommandNoSizeList.Contains(command))
+            if (args.Length >= 1 && ArgsNotNeeded.Contains(command))
                 Console.WriteLine($"Command Error: No size needed for command '{command}'");
-            else if (splitItems.Length == 1 && CommandSizeList.Contains(command))
+            else if (args.Length != 1 && ArgsNeeded.Contains(command))
                 Console.WriteLine($"Command Error: Command '{command}' needs a size");
-            else if (splitItems.Length == 2 && CommandSizeList.Contains(command))
+            else if (args.Length == 3 && ArgsNeeded.Contains(command))
             {
-                if (!double.TryParse(splitItems[1], out size))
+                if (!double.TryParse(args[1], out _) && !IsBoxCommand(command))
                     Console.WriteLine("Size Error: Ensure the size only contains numbers");
             }
 
-            DoubleCommand r = new(command, size);
-            return r;
+            return fullCommand;
         }
 
-        private static DoubleArrayCommand ParseBoxCommand(string input)
+        private static double[] TryBoxDims(string[] commandArgs)
         {
-            string[] splitItems = GetCommand(input).Item2;
             double[] boxDims = [0, 0];
+            if (commandArgs.Length != 2)
+                return boxDims;
 
-            for (int i = 0; i < splitItems[1].Length; i++)
-            {
-                if (splitItems[i].ToLower() == "x")
-                {
-                    if (double.TryParse(splitItems[i - 1], out boxDims[0]))
-                        Console.WriteLine("Size Error: Ensure the size only contains numbers");
-                    if (double.TryParse(splitItems[i + 1], out boxDims[1]))
-                        Console.WriteLine("Size Error: Ensure the size only contains numbers");
-                }
-            }
+            if (!double.TryParse(commandArgs[0], out boxDims[0]))
+                Console.WriteLine("Size Error: Ensure the size only contains numbers");
+            if (!double.TryParse(commandArgs[1], out boxDims[1]))
+                Console.WriteLine("Size Error: Ensure the size only contains numbers");
 
-            DoubleArrayCommand r = new(splitItems[0], boxDims);
-            return r;
+            return boxDims;
         }
 
         private static bool IsBoxCommand(string command)
@@ -125,19 +115,31 @@ namespace Extrusion_Calculator
             return command == "box" || command == "b";
         }
 
-        private static string[] SplitInput(string? input)
+        private static ConsoleCommand InputToFullCommand(string input)
         {
-            if (string.IsNullOrWhiteSpace(input))
-                return Array.Empty<string>();
+            ConsoleCommand fullCommand = new("", Array.Empty<string>());
+            input = input.Trim();
+            int spaceIndex = input.IndexOf(' ');
 
-            string[] inputSplit = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            return inputSplit;
-        }
+            if (spaceIndex < 0)
+            {
+                fullCommand.Command = input;
+                return fullCommand;
+            }
 
-        private static (string, string[]) GetCommand(string input)
-        {
-            string[] inputSplit = SplitInput(input);
-            return (inputSplit[0].ToLower(), SplitInput(input));
+            fullCommand.Command = input[..spaceIndex];
+            string argString = input[(spaceIndex + 1)..].Trim();
+
+            if (IsBoxCommand(fullCommand.Command))
+            {
+                argString = argString.Replace(" ", "");
+                fullCommand.Args = argString.Split('x');
+                return fullCommand;
+            }
+
+            
+            fullCommand.Args = input[(spaceIndex + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return fullCommand;
         }
     }
 }
