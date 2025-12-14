@@ -31,7 +31,7 @@ namespace Extrusion_Calculator.CMD
             Console.WriteLine("Delete a size from inventory");
             Console.WriteLine("Example: del 19.53");
             Console.WriteLine(ThinLine);
-            Console.WriteLine("Clear");
+            Console.WriteLine("'Clear' or 'c'");
             Console.WriteLine("Clears the console");
             Console.WriteLine(ThickLine);
 
