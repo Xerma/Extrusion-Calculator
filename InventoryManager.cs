@@ -13,7 +13,7 @@ namespace Extrusion_Calculator
         private static readonly string AppFolder = Path.Combine(AppDataRoot, "Extrusion Calculator");
         private static readonly string AppInventory = Path.Combine(AppFolder, "Inventory.json");
 
-        private static SortedSet<double> InventoryData;
+        private static SortedSet<InventoryPiece> _inventoryData = new();
 
         public static void SetupInventory()
         {
@@ -38,22 +38,19 @@ namespace Extrusion_Calculator
             return File.Exists(AppInventory);
         }
 
-        public static SortedSet<double> LoadInventory()
+        public static SortedSet<InventoryPiece> LoadInventory()
         {
-            if (DoesAppInventoryFileExist())
+            if (!DoesAppInventoryFileExist())
             {
-                string json = File.ReadAllText(AppInventory);
-                InventoryData = JsonSerializer.Deserialize<SortedSet<double>>(json)!;
-                return InventoryData;
+                _inventoryData = new SortedSet<InventoryPiece>();
+                return _inventoryData;
             }
-            else
-            {
-                InventoryData = new SortedSet<double>();
-                return InventoryData;
-            }
+
+            string json = File.ReadAllText(AppInventory);
+            return JsonSerializer.Deserialize<SortedSet<InventoryPiece>>(json)!;
         }
 
-        public static void SaveInventory(SortedSet<double> i)
+        public static void SaveInventory(SortedSet<InventoryPiece> i)
         {
             string json = JsonSerializer.Serialize(i, new JsonSerializerOptions() { WriteIndented = true });
             File.WriteAllText(AppInventory, json);
