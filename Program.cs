@@ -6,7 +6,7 @@ namespace Extrusion_Calculator
     public class Program()
     {
         private static string? _input;
-        public static SortedSet<double>? InventoryData;
+        public static SortedSet<InventoryPiece>? InventoryData;
 
         static void Main()
         {
@@ -17,7 +17,7 @@ namespace Extrusion_Calculator
             {
                 InventoryManager.SaveInventory(InventoryData);
             };
-            MainWrite();
+            ConsoleHelper.MainWrite();
             MainLoop();
         }
 
@@ -28,12 +28,6 @@ namespace Extrusion_Calculator
                 _input = Console.ReadLine();
                 CommandManager.RunCommand(_input, InventoryData);
             } while (!String.IsNullOrWhiteSpace(_input));
-        }
-
-        public static void MainWrite()
-        {
-            Console.WriteLine("Type help to see all commands");
-            Console.WriteLine("Return nothing to exit");
         }
     }
 }
