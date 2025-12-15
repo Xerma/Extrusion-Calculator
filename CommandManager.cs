@@ -10,12 +10,10 @@ namespace Extrusion_Calculator
 {
     public class CommandManager
     {
-        private static readonly List<string> ArgsNeeded = [ "add", "a", "del", "d", "box", "b" ];
-        private static readonly List<string> ArgsNotNeeded = ["help", "h", "inv", "i", "clear", "c"];
-
-        public static void RunCommand(string input, SortedSet<double> invList)
+        public static void RunCommand(string input, SortedSet<InventoryPiece> invList)
         {
-            ConsoleCommand fullCommand = ParseCommand(input);
+            InventoryPiece invPiece = new();
+            ConsoleCommand fullCommand = InputToConsoleCommand(input);
             string command = fullCommand.Command;
             string[] args = fullCommand.Args;
             double sizeParsed = 0;
@@ -25,49 +23,69 @@ namespace Extrusion_Calculator
             {
                 boxDims = TryBoxDims(args);
             }
-            else if (ArgsNeeded.Contains(command))
+            else if (AreArgsNeeded(command))
             {
+                if (args.Length < 1)
+                {
+                    ConsoleHelper.CommandNeedsArgsWarn();
+                    return;
+                }
+
                 if (!double.TryParse(args[0], out sizeParsed))
-                    Console.WriteLine("Size Error: Ensure the size only contains numbers");
+                {
+                    ConsoleHelper.SizeNumbersOnlyWarn();
+                    return;
+                }
+                
+                if ((IsAddCommand(command) || IsDelCommand(command)) && args.Length < 3)
+                {
+                    ConsoleHelper.NotEnoughEndsWarn();
+                    return;
+                }
+
+                if (IsAddCommand(command) || IsDelCommand(command))
+                {
+                    invPiece.End1 = char.ToUpperInvariant(args[1][0]);
+                    invPiece.End2 = char.ToUpperInvariant(args[2][0]);
+                }
             }
+
+            try
+            {
+                invPiece.Length = sizeParsed;
+            }
+            catch
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Error creating the inventory piece");
+                Console.ResetColor();
+            }
+            
 
             switch (command)
             {
                 case "help":
-                    Help.HelpCommand();
-                    break;
                 case "h":
                     Help.HelpCommand();
                     break;
                 case "add":
-                    invList.Add(sizeParsed);
-                    break;
                 case "a":
-                    invList.Add(sizeParsed);
+                    Add.AddCommand(invPiece, invList);
                     break;
                 case "del":
-                    if (invList.Contains(sizeParsed)) { invList.Remove(sizeParsed); }
-                    break;
                 case "d":
-                    if (invList.Contains(sizeParsed)) { invList.Remove(sizeParsed); }
+                    Delete.DeleteCommand(invPiece, invList);
                     break;
                 case "inv":
-                    Inv.InvCommand(invList);
-                    break;
                 case "i":
                     Inv.InvCommand(invList);
                     break;
                 case "clear":
-                    Console.Clear();
-                    Program.MainWrite();
-                    break;
                 case "c":
                     Console.Clear();
-                    Program.MainWrite();
+                    ConsoleHelper.MainWrite();
                     break;
                 case "box":
-                    Box.BoxCommand(boxDims, invList);            // box command gives needs a size error
-                    break;
                 case "b":
                     Box.BoxCommand(boxDims, invList);
                     break;
@@ -77,42 +95,13 @@ namespace Extrusion_Calculator
             }
         }
 
-        public static ConsoleCommand ParseCommand(string input)
+        public static ConsoleCommand InputToConsoleCommand(string input)
         {
             ConsoleCommand fullCommand = InputToFullCommand(input);
             string command = fullCommand.Command;
             string[] args = fullCommand.Args;
 
-            if (args.Length >= 1 && ArgsNotNeeded.Contains(command))
-                Console.WriteLine($"Command Error: No size needed for command '{command}'");
-            else if (args.Length != 1 && ArgsNeeded.Contains(command))
-                Console.WriteLine($"Command Error: Command '{command}' needs a size");
-            else if (args.Length == 3 && ArgsNeeded.Contains(command))
-            {
-                if (!double.TryParse(args[1], out _) && !IsBoxCommand(command))
-                    Console.WriteLine("Size Error: Ensure the size only contains numbers");
-            }
-
             return fullCommand;
-        }
-
-        private static double[] TryBoxDims(string[] commandArgs)
-        {
-            double[] boxDims = [0, 0];
-            if (commandArgs.Length != 2)
-                return boxDims;
-
-            if (!double.TryParse(commandArgs[0], out boxDims[0]))
-                Console.WriteLine("Size Error: Ensure the size only contains numbers");
-            if (!double.TryParse(commandArgs[1], out boxDims[1]))
-                Console.WriteLine("Size Error: Ensure the size only contains numbers");
-
-            return boxDims;
-        }
-
-        private static bool IsBoxCommand(string command)
-        {
-            return command == "box" || command == "b";
         }
 
         private static ConsoleCommand InputToFullCommand(string input)
@@ -137,9 +126,68 @@ namespace Extrusion_Calculator
                 return fullCommand;
             }
 
-            
+            if (IsAddCommand(fullCommand.Command) || IsDelCommand(fullCommand.Command))
+            {
+                string[] tokens = argString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                if (tokens.Length == 0)
+                {
+                    fullCommand.Args = Array.Empty<string>();
+                    return fullCommand;
+                }
+
+                string sizePart = tokens[0];
+                string endSpec = tokens.Length > 1 ? tokens[1] : "f/f";
+
+                string[] endParts = endSpec.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+                string end1 = endParts.Length > 0 ? endParts[0] : "f";
+                string end2 = endParts.Length > 1 ? endParts[1] : end1;
+
+                fullCommand.Args = new[] { sizePart, end1, end2 };
+                return fullCommand;
+            }
+
+
             fullCommand.Args = input[(spaceIndex + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
             return fullCommand;
+        }
+
+        private static double[] TryBoxDims(string[] commandArgs)
+        {
+            double[] boxDims = [0, 0];
+            if (commandArgs.Length != 2)
+                return boxDims;
+
+            if (!double.TryParse(commandArgs[0], out boxDims[0]))
+                ConsoleHelper.SizeNumbersOnlyWarn();
+                
+            if (!double.TryParse(commandArgs[1], out boxDims[1]))
+                ConsoleHelper.SizeNumbersOnlyWarn();
+
+            return boxDims;
+        }
+
+        private static bool AreArgsNeeded(string command)
+        {
+            return command == "add" || command == "a" || 
+                   command == "del" || command == "d" || 
+                   command == "box" || command == "b";
+        }
+
+        private static bool IsDelCommand(string command)
+        {
+            return command == "del" || command == "d";
+        }
+
+        private static bool IsAddCommand(string command)
+        {
+            return command == "add" || command == "a";
+        }
+
+        private static bool IsBoxCommand(string command)
+        {
+            return command == "box" || command == "b";
         }
     }
 }
